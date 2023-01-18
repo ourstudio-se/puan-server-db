@@ -1,0 +1,6 @@
+aiohttp==3.8.3
+fastapi==0.89.0
+hypercorn==0.14.3
+maz==0.0.7
+puan==0.5.0
+pydantic[dotenv]==1.10.4
