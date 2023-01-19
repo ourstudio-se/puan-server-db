@@ -1,37 +1,44 @@
 
-from app.models import Commit, Branch, CommitResult, Model, ModelInit, ModelInitResult, CommitsResult
+from app.models import Commit, Branch, CommitResult, Model, ModelInit, InitResult, CommitsResult, CommitAssumption
 from app.storage import ModelStorage, BranchStorage, CommitStorage
 
 from dataclasses import dataclass
 from puan import Proposition
-from typing import Tuple, Optional, List
+from puan.logic.plog import from_b64
+from typing import Tuple, Optional, List, Dict
 from itertools import takewhile
 
 @dataclass
 class PropositionService:
 
     branch_name_default: str
+    ignore_proposition_validation: bool
 
     commit_storage: CommitStorage
     branch_storage: BranchStorage
     model_storage:  ModelStorage
 
-    @staticmethod
-    def validate_proposition(proposition: Proposition) -> Optional[str]:
+    def decode_data(self, data: str) -> Tuple[Optional[Proposition], Optional[str]]:
 
         """
-            Will return a error as a string if the proposition was invalid
+            Decodes data string into a Proposition, validates it and returns the proposition and maybe an error string.
         """
-        proposition_errors = proposition.errors()
-        if len(proposition_errors) > 0:
-            return f"validation error for proposiiton: {proposition_errors}"
+        try:
+            proposition = from_b64(data)
+        except Exception as e:
+            return None, str(e)
 
-        return None
+        if not self.ignore_proposition_validation:
+            proposition_errors = proposition.errors()
+            if len(proposition_errors) > 0:
+                return None, f"validation error for proposiiton: {proposition_errors}"
 
-    def commit(self, model_id: str, branch_name: str, proposition: Proposition) -> CommitResult:
+        return proposition, None
+
+    def commit(self, model_id: str, branch_name: str, data: str) -> CommitResult:
 
         # Check first that the proposition is fine
-        error = self.validate_proposition(proposition)
+        proposition, error = self.decode_data(data)
         if error:
             return CommitResult(error=error)
 
@@ -49,7 +56,6 @@ class PropositionService:
                 # The branch current commit is parent to this new commit
                 commit = Commit(
                     parent=branch.commit_id,
-                    author=author,
                     data=proposition.to_b64(),
                 )
                 commit.sha = commit.hash()
@@ -82,10 +88,18 @@ class PropositionService:
                     error="model and/or branch does not exists",
                 )
 
-    def init(self, model_id: str, model_name: str, author: str, proposition: Proposition) -> ModelInitResult:
+    def init(self, model_id: str, model_name: str, author: str, data: str) -> InitResult:
+
+        """
+            Init a model with default branch name and commits the given proposition as a starting point.
+
+            Returns
+            -------
+                out: InitResult
+        """
         
         # Check first that the proposition is fine
-        error = self.validate_proposition(proposition)
+        proposition, error = self.decode_data(data)
         if error:
             return CommitResult(error=error)
 
@@ -106,41 +120,41 @@ class PropositionService:
 
                 if sha is not None:
 
-                    success, error = self.model_storage.update(
-                        Model(
-                            id=model_id, 
-                            name=model_name,
-                            branches=[self.branch_name_default],
-                        )
+                    model = Model(
+                        id=model_id, 
+                        name=model_name,
+                        branches=[self.branch_name_default],
                     )
+                    success, error = self.model_storage.update(model)
 
                     if success:
                         
-                        success, error = self.branch_storage.update(
-                            Branch(
-                                name=self.branch_name_default,
-                                commit_id=sha,
-                                model_id=model_id,
-                            )
+                        branch = Branch(
+                            name=self.branch_name_default,
+                            commit_id=sha,
+                            model_id=model.id,
                         )
+                        success, error = self.branch_storage.update(branch)
 
-                        return ModelInitResult(
-                            error=f"could not store branch: {error}" if not success else None
+                        return InitResult(
+                            error=f"could not store branch: {error}" if not success else None,
+                            model=model.id if success else None,
+                            branch=branch.name,
                         )
 
                     else:
-                        return ModelInitResult(
+                        return InitResult(
                             error=f"could not store model: {error}"
                         )
 
                 else:
 
-                    return ModelInitResult(
+                    return InitResult(
                         error="could not store initial commit :("
                     )
 
             else:
-                return ModelInitResult(
+                return InitResult(
                     error=f"model with id '{model_id}' already exist"
                 )
 
@@ -191,5 +205,106 @@ class PropositionService:
 
         else:
             return CommitsResult(
-                error=f"could not find branch '{branch_name}' for model with id '{model}'"
+                error=f"could not find branch '{branch_name}' for model with id '{model_id}'"
+            )
+
+    def assume_commit(self, commit_sha: str, assumption: Dict[str, int]) -> CommitAssumption:
+
+        """
+            Assumes `assumption` on data from commit. Returns assumed data.
+
+            Returns
+            -------
+                out: CommitAssumption
+        """
+
+        commit = self.commit_storage.retrieve(commit_sha)
+
+        if commit:
+            
+            # unpack data and assume
+            try:
+                proposition = from_b64(commit.data)
+            except Exception as e:
+                return CommitAssumption(
+                    error=f"could not unpack data from commit: {e}"
+                )
+
+            try:
+                assumed = proposition.assume(assumption)
+            except Exception as e:
+                return CommitAssumption(
+                    error=f"could not assume `assumption` on commit's data: {e}"
+                )
+
+            return CommitAssumption(
+                data=assumed.to_b64(),
+            )
+
+        else:
+            return CommitAssumption(
+                error=f"could not find commit with sha '{commit_sha}'"
+            )
+
+    def branching(self, model_id: str, on_branch_name: str, new_branch_name: str) -> InitResult:
+
+        """
+            Creates a new branch `new_branch_name` pointing initially at same commit
+            as branch `on_branch_name`.
+
+            Returns
+            -------
+                out: InitResult
+        """
+        branch = self.branch_storage.retrieve(
+            Branch._construct_id(model_id, on_branch_name),
+        )
+
+        if branch:
+
+            new_branch = Branch(
+                model_id=model_id,
+                commit_id=branch.commit_id,
+                name=new_branch_name, 
+            )
+
+            success, error = self.branch_storage.update(new_branch)
+
+            return InitResult(
+                error=None if success else error,
+                branch=new_branch.name,
+                model=model_id,
+            )
+
+        else:
+            return InitResult(
+                error=f"could not find branch '{on_branch_name}' in model '{model_id}'"
+            )
+
+    def commit_latest(self, model_id: str, branch_name: str) -> CommitResult:
+
+        """
+            Retrieves the latest commit on model and branch.
+
+            Returns
+            -------
+                out: CommitResult
+        """
+        branch = self.branch_storage.retrieve(
+            Branch._construct_id(model_id, branch_name)
+        )
+
+        if branch:
+
+            commit = self.commit_storage.retrieve(branch.commit_id)
+
+            return CommitResult(
+                commit=commit,
+                error=f"could not find commit with sha '{branch.commit_id}'" if commit is None else None,
+            )
+
+        else:
+            return CommitResult(
+                commit=None,
+                error=f"could not find branch from branch name '{branch_name}' and model '{model_id}'",
             )

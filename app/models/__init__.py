@@ -33,7 +33,7 @@ class Commit(Picklable):
 
     sha:    Optional[str] = None
     parent: Optional[str] = None
-    author: str
+    author: str = ""
     data:   str
 
     def hash(self, str_encoding: str = 'utf8') -> str:
@@ -64,11 +64,13 @@ class ModelInit(BaseModel):
     id: str
     name: str
     author: str = ""
-    proposition: str
+    data: str
 
-class ModelInitResult(BaseModel):
+class InitResult(BaseModel):
 
-    error: Optional[str] = None
+    error:  Optional[str] = None
+    model:  Optional[str] = None
+    branch: Optional[str] = None
 
 
 class CommitResult(BaseModel):
@@ -85,3 +87,8 @@ class CommitProposition(BaseModel):
 
     author: str
     proposition_compressed: str
+
+class CommitAssumption(BaseModel):
+
+    data:  Optional[str] = None
+    error: Optional[str] = None
