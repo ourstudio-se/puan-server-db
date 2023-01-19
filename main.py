@@ -11,7 +11,7 @@ from hypercorn.config import Config
 from app.config.settings import Settings
 from app.config import ServiceConfiguration
 from app.services import PropositionService
-from app.storage.fake_storage import FakeBranchStorage, FakeCommitStorage, FakeModelStorage
+from app.storage.fake_storage import FakeBranchStorage, FakeCommitStorage
 from app.routers import proposition
 
 app = FastAPI()
@@ -30,10 +30,8 @@ async def startup_event():
     # Init shared instances from config
     ServiceConfiguration(
         proposition_service=PropositionService(
-            branch_name_default=settings.branch_default_name,
             ignore_proposition_validation=settings.ignore_proposition_validation,
             branch_storage=FakeBranchStorage(),
-            model_storage=FakeModelStorage(),
             commit_storage=FakeCommitStorage()
         ),
     )

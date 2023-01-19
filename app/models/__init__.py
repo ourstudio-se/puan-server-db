@@ -1,4 +1,4 @@
-from hashlib import sha256
+
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -36,35 +36,13 @@ class Commit(Picklable):
     author: str = ""
     data:   str
 
-    def hash(self, str_encoding: str = 'utf8') -> str:
-        return sha256(self.data.encode(str_encoding)).hexdigest()
 
 class Branch(Picklable):
 
-    name:       str
+    id:         str
     commit_id:  str
     model_id:   str
 
-    @property
-    def id(self):
-        return Branch._construct_id(self.model_id, self.name)
-
-    @staticmethod
-    def _construct_id(model_id: str, name: str) -> str:
-        return f"{model_id}.{name}"
-
-class Model(Picklable):
-
-    id: str
-    name: str
-    branches: List[str] = []
-
-class ModelInit(BaseModel):
-
-    id: str
-    name: str
-    author: str = ""
-    data: str
 
 class InitResult(BaseModel):
 

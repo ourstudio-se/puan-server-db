@@ -2,34 +2,38 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from app.models import Commit, Branch, Model
+from app.models import Commit, Branch
 from typing import Optional, Tuple
 
 @dataclass
 class CommitStorage:
 
     @abstractmethod
-    def retrieve(self, sha: str) -> Optional[Commit]:
+    def retrieve(self, sha: str) -> Tuple[Optional[Commit], Optional[str]]:
 
         """
             Retrieve commit by key as a sha hash string.
             
             Returns
             -------
-            Optional[Commit]
+            Tuple[Optional[Commit], Optional[str]]
+                The left side is the commit if it was found and nothing did go wrong.
+                The right side is an error which is None if everything was ok.
         """
 
         raise NotImplementedError()
 
     @abstractmethod
-    def commit(self, commit: Commit) -> Optional[str]:
+    def commit(self, commit: Commit) -> Tuple[Optional[Commit], Optional[str]]:
         """
-            Stores a `commit` by creating a sha256 hash from it and returns that value
-            if store was a success.
+            Stores a `commit` by creating a sha256 hash from it and returns None if success.
+            If there was an error, then that error as a string is returned.
                 
             Returns
             -------
-            Optional[str]
+            Tuple[Optional[str], Optional[str]]
+                The left side is the commit (including sha string), if storing was ok else None.
+                The right side is an error, if something went wrong else None.
         """
 
         raise NotImplementedError()
@@ -38,62 +42,31 @@ class CommitStorage:
 class BranchStorage:
 
     @abstractmethod
-    def retrieve(self, id: str) -> Optional[Branch]:
+    def retrieve(self, model_id: str, branch_id: str) -> Tuple[Optional[Branch], Optional[str]]:
 
         """
-            Retrieve branch by key as a `id` string.
+            Retrieve branch from `model_id` and `branch_id`.
             
             Returns
             -------
-            Optional[Branch]
+            Tuple[Optional[Branch], Optional[str]]
+                The left side is the branch if it was found and nothing did go wrong.
+                The right side is an error which is None if everything was ok.
         """
 
         raise NotImplementedError()
 
     @abstractmethod
-    def update(self, branch: Branch) -> Tuple[bool, Optional[str]]:
+    def update(self, branch: Branch) -> Tuple[Optional[Branch], Optional[str]]:
         """
             Updates (stores if not exist) a `branch` on it's name. If the name
             is already in db, then the pointer to a commit is updated. 
                 
             Returns
             -------
-            Tuple[bool, Optional[str]]
-                A bool indicating success or not. A message is sent back as second parameter
-                to give more information of what went wrong. If True and a message is set, the
-                message indicate a warning.
+            Tuple[Optional[Branch], Optional[str]]
+                The left side is the branch, if updating was ok else None.
+                The right side is an error, if something went wrong else None.
         """
 
-        raise NotImplementedError()
-
-@dataclass
-class ModelStorage:
-
-    @abstractmethod
-    def retrieve(self, id: str) -> Optional[Model]:
-
-        """
-            Retrieves a model by id. If no model by that id,
-            None is returned.
-
-            Returns
-            -------
-            Optional[Model]
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def update(self, model: Model) -> Tuple[bool, Optional[str]]:
-
-        """
-            Updates (stores if not exist) a `branch` on it's name. If the name
-            is already in db, then the pointer to a commit is updated. 
-                
-            Returns
-            -------
-            Tuple[bool, Optional[str]]
-                A bool indicating success or not. A message is sent back as second parameter
-                to give more information of what went wrong. If True and a message is set, the
-                message indicate a warning.
-        """
         raise NotImplementedError()
