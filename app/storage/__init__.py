@@ -3,7 +3,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 
 from app.models import Commit, Branch
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 @dataclass
 class CommitStorage:
@@ -42,6 +42,20 @@ class CommitStorage:
 class BranchStorage:
 
     @abstractmethod
+    def collect(self, search_string: str) -> Tuple[Optional[List[Branch]], Optional[str]]:
+
+        """
+            Collects all branches where its key is matching search string.
+
+            Returns
+            -------
+            Tuple[Optional[List[Branch]], Optional[str]]
+                The left side is the list of branches if nothing did go wrong.
+                The right side is an error which is None if everything was ok.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
     def retrieve(self, model_id: str, branch_id: str) -> Tuple[Optional[Branch], Optional[str]]:
 
         """
@@ -53,7 +67,6 @@ class BranchStorage:
                 The left side is the branch if it was found and nothing did go wrong.
                 The right side is an error which is None if everything was ok.
         """
-
         raise NotImplementedError()
 
     @abstractmethod
@@ -68,5 +81,4 @@ class BranchStorage:
                 The left side is the branch, if updating was ok else None.
                 The right side is an error, if something went wrong else None.
         """
-
         raise NotImplementedError()

@@ -1,5 +1,5 @@
 
-from app.models import Commit, Branch, CommitResult, InitResult, CommitsResult, CommitAssumption
+from app.models import Commit, Branch, CommitResult, InitResult, CommitsResult, CommitAssumption, BranchesResult
 from app.storage import  BranchStorage, CommitStorage
 
 from dataclasses import dataclass
@@ -159,3 +159,19 @@ class PropositionService:
             return CommitResult(
                 error=error,
             )
+
+    def branches(self, model_id: str) -> BranchesResult:
+
+        """
+            Retrieves all branches connecting to `model_id`
+
+            Returns
+            -------
+            BranchResult
+        """
+
+        branches, error = self.branch_storage.collect(model_id)
+        return BranchesResult(
+            branches=branches,
+            error=error,
+        )

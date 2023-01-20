@@ -70,3 +70,8 @@ class CommitAssumption(BaseModel):
 
     data:  Optional[str] = None
     error: Optional[str] = None
+
+class BranchesResult(BaseModel):
+
+    branches: Optional[List[Branch]]    = None
+    error:    Optional[str]             = None

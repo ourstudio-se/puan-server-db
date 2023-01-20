@@ -3,7 +3,7 @@ from typing import List, Dict
 from fastapi import Body
 
 from app.config import ServiceConfiguration
-from app.models import Branch, CommitResult, CommitsResult, CommitAssumption, InitResult
+from app.models import Branch, CommitResult, CommitsResult, CommitAssumption, InitResult, BranchesResult
 
 router = APIRouter(
     tags=["version control system"],
@@ -36,3 +36,10 @@ async def get_commits(model: str, branch: str) -> CommitsResult:
 )
 async def commit(model: str, branch: str, data: str = Body(...)):
     return ServiceConfiguration().proposition_service.commit(model, branch, data)
+
+@router.get(
+    "/{model}/branches",
+    description="""Returns all branches connected to given model"""
+)
+async def model_branches(model: str) -> BranchesResult:
+    return ServiceConfiguration().proposition_service.branches(model)

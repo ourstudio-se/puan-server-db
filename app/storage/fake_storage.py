@@ -1,7 +1,7 @@
 from hashlib import sha256
 from app.storage import CommitStorage, BranchStorage
 from app.models import Commit, Branch
-from typing import Dict, Callable, Any, Optional, Tuple
+from typing import Dict, Callable, Any, Optional, Tuple, List
 
 class FakeCommitStorage(CommitStorage):
 
@@ -22,7 +22,7 @@ class FakeCommitStorage(CommitStorage):
         _commit, _ = self.retrieve(commit.sha)
         if _commit:
             return _commit, None
-            
+
         self.data.setdefault(commit.sha, commit.encode())
         return commit, None
 
@@ -33,6 +33,17 @@ class FakeBranchStorage(BranchStorage):
     @staticmethod
     def construct_id(model_id: str, branch_id: str) -> str:
         return f"{model_id}.{branch_id}"
+
+    def collect(self, search_str: str) -> Tuple[Optional[List[Branch]], Optional[str]]:
+        return list(
+            map(
+                lambda k: Branch.decode(self.data[k]),
+                filter(
+                    lambda k: search_str in k,
+                    self.data,
+                )
+            )
+        ), None
     
     def retrieve(self, model_id: str, branch_id: str) -> Tuple[Optional[Branch], Optional[str]]:
         branch_encoded = self.data.get(
