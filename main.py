@@ -10,7 +10,7 @@ from hypercorn.config import Config
 
 from app.config.settings import Settings
 from app.config import ServiceConfiguration
-from app.services import PropositionService
+from app.services import CommitService
 from app.storage.fake_storage import FakeBranchStorage, FakeCommitStorage
 from app.routers import proposition
 
@@ -19,6 +19,7 @@ app.include_router(proposition.router)
 
 settings = Settings()
 logger = logging.getLogger(settings.app_name)
+logger.setLevel(settings.log_level)
 
 @app.get("/healthcheck")
 async def healthcheck():
@@ -29,10 +30,10 @@ async def startup_event():
     
     # Init shared instances from config
     ServiceConfiguration(
-        proposition_service=PropositionService(
-            ignore_proposition_validation=settings.ignore_proposition_validation,
+        commit_service=CommitService(
             branch_storage=FakeBranchStorage(),
-            commit_storage=FakeCommitStorage()
+            commit_storage=FakeCommitStorage(),
+            logger=logger,
         ),
     )
 
@@ -62,4 +63,5 @@ config = Config()
 config.bind = [settings.app_serve]
 
 if __name__ == '__main__':
+    print(f"log level set to: {settings.log_level}")
     asyncio.run(serve(app, config))

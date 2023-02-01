@@ -2,8 +2,9 @@
 from typing import Callable, List, Optional
 from dataclasses import dataclass
 from pydantic import BaseSettings, Field
+from logging import Logger
 
-from app.services import PropositionService
+from app.services import CommitService
 
 class Singleton(type):
     _instances = {}
@@ -18,5 +19,4 @@ class ServiceConfiguration(metaclass=Singleton):
     """
         A ServiceConfiguration holds services needed to run application.
     """
-    proposition_service: PropositionService
-    
+    commit_service: CommitService

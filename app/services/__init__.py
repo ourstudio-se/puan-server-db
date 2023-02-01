@@ -1,4 +1,4 @@
-
+from abc import abstractclassmethod
 from app.models import Commit, Branch, CommitResult, InitResult, CommitsResult, CommitAssumption, BranchesResult
 from app.storage import  BranchStorage, CommitStorage
 
@@ -6,39 +6,35 @@ from dataclasses import dataclass
 from puan import Proposition
 from puan.logic.plog import from_b64
 from typing import Tuple, Optional, List, Dict
+from logging import Logger
 
 @dataclass
-class PropositionService:
-
-    ignore_proposition_validation: bool
+class CommitService:
 
     commit_storage: CommitStorage
     branch_storage: BranchStorage
+    logger: Logger
 
-    def decode_data(self, data: str) -> Tuple[Optional[Proposition], Optional[str]]:
+    def validate(self, data: str) -> Optional[str]:
 
         """
-            Decodes data string into a Proposition, validates it and returns the proposition and maybe an error string.
+            Returns error if there's one.
+
+            Returns
+            -------
+            List[str]
         """
-        if not self.ignore_proposition_validation:
-            try:
-                proposition = from_b64(data)
-            except Exception as e:
-                return str(e)
-
-            proposition_errors = proposition.errors()
-            if len(proposition_errors) > 0:
-                return f"validation error for proposiiton: {proposition_errors}"
-
         return None
 
     def commit(self, model_id: str, branch_id: str, data: str) -> CommitResult:
 
         # Check first that the proposition is fine
-        error = self.decode_data(data)
+        error = self.validate(data)
         if error:
-
-            return CommitResult(error=error)
+            self.logger.error(error)
+            return CommitResult(
+                error=f"could not commit for model `{model_id}` and branch `{branch_id}`: validation failed",
+            )
 
         else:
 
@@ -58,9 +54,9 @@ class PropositionService:
             commit_stored, error = self.commit_storage.commit(commit_new)
             
             if error:
-
+                self.logger.error(error)
                 return CommitResult(
-                    error=error,
+                    error=f"could not commit for model `{model_id}` and branch `{branch_id}`: failed to store",
                 )
             
             else:
@@ -72,6 +68,8 @@ class PropositionService:
                         commit_id=commit_stored.sha,
                     )
                 )
+
+                print(f"commit: `{model_id}` `{branch_id}` `{commit_stored.sha}`")
 
                 return CommitResult(
                     commit=commit_stored,
@@ -88,8 +86,11 @@ class PropositionService:
                 out: str
         """
         commit, error = self.commit_storage.retrieve(commit_sha)
+        if error:
+            self.logger.error(error)
+
         return CommitResult(
-            error=error if error is not None else None,
+            error="could not retreive commit" if error is not None else None,
             commit=commit,
         )
 
@@ -175,3 +176,26 @@ class PropositionService:
             branches=branches,
             error=error,
         )
+
+class PropositionService(CommitService):
+
+    ignore_proposition_validation: bool
+    
+    def validate(self, data: str) -> Optional[str]:
+
+        if not self.ignore_proposition_validation:
+            try:
+                proposition = from_b64(data)
+            except Exception as e:
+                return str(e)
+
+            proposition_errors = proposition.errors()
+            if len(proposition_errors) > 0:
+                return f"validation error for proposiiton: {proposition_errors}"
+
+        return None
+
+class PolyhedronService(CommitService):
+
+    def decode_data(self, data: str) -> Optional[str]:
+        return None
